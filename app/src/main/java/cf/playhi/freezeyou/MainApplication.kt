@@ -7,6 +7,13 @@ import android.content.pm.PackageManager
 import androidx.annotation.NonNull
 import androidx.preference.PreferenceManager
 import cf.playhi.freezeyou.service.ScreenLockOneKeyFreezeService
+import cf.playhi.freezeyou.storage.key.DefaultMultiProcessMMKVStorageBooleanKeys
+import cf.playhi.freezeyou.storage.key.DefaultMultiProcessMMKVStorageBooleanKeys.enableAuthentication
+import cf.playhi.freezeyou.storage.key.DefaultMultiProcessMMKVStorageBooleanKeys.tryDelApkAfterInstalled
+import cf.playhi.freezeyou.storage.key.DefaultMultiProcessMMKVStorageStringKeys
+import cf.playhi.freezeyou.storage.key.DefaultMultiProcessMMKVStorageStringKeys.languagePref
+import cf.playhi.freezeyou.storage.key.DefaultMultiProcessMMKVStorageStringKeys.selectFUFMode
+import cf.playhi.freezeyou.storage.mmkv.DefaultMultiProcessMMKVStorage
 import cf.playhi.freezeyou.utils.OneKeyListUtils
 import cf.playhi.freezeyou.utils.ServiceUtils
 import cf.playhi.freezeyou.utils.Support.checkLanguage
@@ -36,6 +43,7 @@ class MainApplication : Application() {
             checkAndMigrateSharedPreferenceDataToTray()
             checkAndMigrateAppIconDataPreference()
             checkAndMigrateEnableAuthenticationPreferenceDataToMMKV()
+            // checkAndMigrateMultiProcessPreferenceDataToMMKV()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -202,12 +210,75 @@ class MainApplication : Application() {
                     + "migrateEnableAuthenticationPreferenceDataToMMKV.lock"
         )
         if (!migrateLock.exists()) {
-            DefaultMultiProcessMMKVDataStore()
+            DefaultMultiProcessMMKVStorage()
                 .putBoolean(
-                    "enableAuthentication",
+                    enableAuthentication.name,
                     AppPreferences(this)
-                        .getBoolean("enableAuthentication", false)
+                        .getBoolean(enableAuthentication.name, enableAuthentication.defaultValue())
                 )
+                .sync()
+            migrateLock.createNewFile()
+        }
+    }
+
+    @Throws(IOException::class)
+    private fun checkAndMigrateMultiProcessPreferenceDataToMMKV() {
+        checkAndMigratePreferenceDataFromSharedPreferenceToTrayForFurtherMigrateToMMKV()
+        val migrateLock = File(
+            filesDir.absolutePath + File.separator
+                    + "migrateMultiProcessPreferenceDataToMMKVtest220225.lock"
+        )
+        if (!migrateLock.exists()) {
+            val appPreference = AppPreferences(this)
+            DefaultMultiProcessMMKVStorage().run {
+                DefaultMultiProcessMMKVStorageBooleanKeys.values().forEach { key ->
+                    if (key.name != enableAuthentication.name) {
+                        putBoolean(
+                            key.name,
+                            appPreference
+                                .getBoolean(key.name, key.defaultValue())
+                        )
+                    }
+                }
+                DefaultMultiProcessMMKVStorageStringKeys.values().forEach { key ->
+                    putString(
+                        key.name,
+                        appPreference
+                            .getString(key.name, key.defaultValue())
+                    )
+                }
+                sync()
+            }
+            migrateLock.createNewFile()
+        }
+    }
+
+    @Throws(IOException::class)
+    private fun checkAndMigratePreferenceDataFromSharedPreferenceToTrayForFurtherMigrateToMMKV() {
+        val migrateLock = File(
+            filesDir.absolutePath + File.separator
+                    + "migrateSomePreferenceDataFromSharedPreferenceToTrayForFurtherMigrateToMMKVTest031.lock"
+        )
+        if (!migrateLock.exists()) {
+            val sp = PreferenceManager.getDefaultSharedPreferences(this@MainApplication);
+            AppPreferences(this).run {
+                put(
+                    languagePref.name,
+                    sp.getString(languagePref.name, languagePref.defaultValue())
+                )
+                remove(selectFUFMode.name)
+                put(
+                    selectFUFMode.name,
+                    sp.getString(selectFUFMode.name, selectFUFMode.defaultValue())
+                )
+                put(
+                    tryDelApkAfterInstalled.name,
+                    sp.getBoolean(
+                        tryDelApkAfterInstalled.name,
+                        tryDelApkAfterInstalled.defaultValue()
+                    )
+                )
+            }
             migrateLock.createNewFile()
         }
     }

@@ -1,12 +1,13 @@
 package cf.playhi.freezeyou.utils;
 
-import android.content.Context;
+import cf.playhi.freezeyou.storage.mmkv.DefaultMultiProcessMMKVStorage;
 
-import net.grandcentrix.tray.AppPreferences;
+import static cf.playhi.freezeyou.storage.key.DefaultMultiProcessMMKVStorageBooleanKeys.debugModeEnabled;
 
 public final class DebugModeUtils {
 
-    public static boolean isDebugModeEnabled(Context context) {
-        return new AppPreferences(context).getBoolean("debugModeEnabled", false);
+    public static boolean isDebugModeEnabled() {
+        return new DefaultMultiProcessMMKVStorage()
+                .getBoolean(debugModeEnabled.name(), debugModeEnabled.defaultValue());
     }
 }
